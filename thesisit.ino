@@ -15,6 +15,11 @@ int hr_12_ctr = 0;
 int hr_24_ctr = 0;
 int power_led = 34;
 
+//GSM variables
+int gsm_hour[] = {8, 12, 18};
+int gsm_minute[] = {0, 0, 53};
+int gsm_second[] = {0, 0, 0};
+
 //Feeding time of fishes. Where index[0] will be for 12 hrs and index[1] will be for 24 hrs.
 String feed_hour[] = {"00", "00"}; //(24-hour format 00-23)
 String feed_minute[] = {"00", "00"}; //(0-59)
@@ -70,14 +75,42 @@ DallasTemperature sensors(&oneWirePin);
 int pHArray[ArrayLenth];   //Store the average value of the sensor feedback
 int pHArrayIndex=0; 
 
+#include "Adafruit_FONA.h"
+
+#define FONA_RST 5
+
+HardwareSerial *fonaSerial = &Serial3;
+// Use this for FONA 800 and 808s
+Adafruit_FONA fona = Adafruit_FONA(FONA_RST);
+
+
 void setup() {
   Serial.begin(9600);
   lcd.begin(16, 2);
   clock.begin();
   sensors.begin();
+
+  lcd.clear();
+  lcd.setCursor(0,0);
+  lcd.print("GSM...");
+  lcd.setCursor(0,1);
+  lcd.print("Initializing...");
+  fonaSerial->begin(4800);
+  if (! fona.begin(*fonaSerial)) {
+    lcd.print("Couldn't find GSM");
+    while (1);
+  }
+  delay(3000);
+  lcd.print("GSM is ready");
+
+  //GSM pinmode
+  pinMode(8, OUTPUT);// GND of GSM module
+  digitalWrite(8, LOW);
+  
   
   //Uncomment to set the time and date
   //clock.setDateTime(__DATE__, __TIME__);
+  
   pinMode(power_led, OUTPUT);
   digitalWrite(power_led, HIGH);
   
@@ -110,12 +143,7 @@ void setup() {
   pinMode(system_display_pin, INPUT_PULLUP);// button pin for displaying the sensors data
   
   pinMode(feed_pin, OUTPUT);
-  pinMode(pump1_pin, OUTPUT);
-  pinMode(pump2_pin, OUTPUT);
-  
   digitalWrite(feed_pin, HIGH);
-  digitalWrite(pump1_pin, HIGH);
-  digitalWrite(pump2_pin, HIGH);
 
   pinMode(22, OUTPUT);//negative float sensor
   pinMode(pump1_pin, OUTPUT);//control of relay1
@@ -188,6 +216,7 @@ String format_minutes(String mint){
   return mint;
 }
 void displayDateTime(){ //function for displaying the time on the LCD
+  
   lcd.clear();
   lcd.setCursor(0,0);
   lcd.print("Date: ");
@@ -201,6 +230,7 @@ void displayDateTime(){ //function for displaying the time on the LCD
 }
 
 void feedfish(){ //function for the fishfeeder
+  
   if(feed_count < feed_seconds){
     if(pump_ctr == 0){
       lcd.setCursor(0,0);
@@ -228,6 +258,7 @@ void feedfish(){ //function for the fishfeeder
 }
 
 void pumpwater(){ //function for the water pump
+  
   if(pump_count < pump_seconds){
     if(feed_ctr == 0){
       lcd.setCursor(0,0);
@@ -273,6 +304,7 @@ float getPh(){ //function for getting the ph value
 }
 
 void getSystemData(){
+  
   if(display_count < 6){
     lcd.setCursor(0,0);
     lcd.print("*Temp: " + String(getTempe()) + "***");
@@ -306,13 +338,56 @@ void getSystemData(){
   }
 }
 
+void flushSerial() {
+  while (Serial.available())
+    Serial.read();
+}
+
+void sendSMS(char num[], int len_num, char msg[], int len_msg){//need for testing char num[], int len_num, 
+  char sendto[len_num+1], message[len_msg+1];
+  flushSerial();
+  for(int x=0;x<len_num;x++){
+    sendto[x] = num[x];
+  }
+  sendto[len_num] = '\0';
+  for(int x=0;x<len_msg;x++){
+    message[x] = msg[x];
+  }
+  message[len_msg] = '\0';
+  
+  if (!fona.sendSMS(sendto, message)) {
+    Serial.println(F("Failed"));
+  } else {
+    Serial.println(F("Sent!"));
+  }
+}
+
 void loop() {
   static unsigned long samplingTime = millis();
   static unsigned long samplingTime2 = millis();
   
   dt = clock.getDateTime();
+
+  if((dt.hour == gsm_hour[0] && dt.minute == gsm_minute[0] && dt.second == gsm_second[0]) || 
+      (dt.hour == gsm_hour[1] && dt.minute == gsm_minute[1] && dt.second == gsm_second[1]) || 
+      (dt.hour == gsm_hour[2] && dt.minute == gsm_minute[2] && dt.second == gsm_second[2])){
+    String msg_alert = "'ph':'" + String(getPh()) + "', 'temp':'" + String(getTempe()) + "'";
+    Serial.println("MSG: " + msg_alert);
+    String snum = "21583883";
+    int len_num = snum.length();
+    char cnum[len_num];
+    for(int x=0;x<len_num;x++){
+      cnum[x] = snum.charAt(x);
+    }
+    int len_msg = msg_alert.length();
+    char cmsg[len_msg];
+    for(int x=0;x<len_msg;x++){
+      cmsg[x] = msg_alert.charAt(x);
+    }
+    sendSMS(cnum, len_num, cmsg, len_msg);
+  }
   
-  if(digitalRead(feedcontrol_pin) == LOW || feed_ctr == 1){ //will check if the button for fishfeeder is pressed or there is a specified alarm
+  if(digitalRead(feedcontrol_pin) == LOW || feed_ctr == 1){ //will check if the button for fishfeeder is pressed
         Serial.println("FEED!");
         if(digitalRead(feedcontrol_12_hrs_led) == LOW && digitalRead(feedcontrol_24_hrs_led) == LOW){
           default_hour = dt.hour;
@@ -342,7 +417,6 @@ void loop() {
   }
 
   if(digitalRead(pumpcontrol_pin) == LOW || pump_ctr == 1){ //will check if the button for water pump is pressed
-    Serial.println("PUMP!");
     pump_ctr = 1;
     pumpwater();
   }
@@ -352,10 +426,11 @@ void loop() {
     getSystemData();
   }
 
-  if(digitalRead(24)==LOW || getPh() < 4.6){
+  if((digitalRead(24)==LOW || getPh() < 4.6) && pump_ctr == 0){
     digitalWrite(pump1_pin, LOW);
     digitalWrite(pump2_pin, LOW);
-  } else if(digitalRead(24)==HIGH || getPh() > 4.5){
+  } else if((digitalRead(24)==HIGH || getPh() > 4.5) && pump_ctr == 0){
+    delay(200);
     digitalWrite(pump1_pin, HIGH);
     digitalWrite(pump2_pin, HIGH);
   }
@@ -403,6 +478,7 @@ void loop() {
   }
   
   if(millis()-samplingTime2 > one_sec){ //non-blocking one second delay
+    lcd.begin(16,2);
     if(display_ctr == 1){
       if(display_count < display_seconds){
         display_count++;
