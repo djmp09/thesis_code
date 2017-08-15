@@ -17,7 +17,8 @@ int pump_msg_ctr = 0;
 int float_msg_ctr = 0;
 
 int display_priority = 0;
-
+int disable_pump_ctr = 0;
+int disable_float_ctr = 0;
 
 int hr_12_ctr = 0;
 int hr_24_ctr = 0;
@@ -29,7 +30,7 @@ int error_seconds = 1;
 
 //GSM variables
 int gsm_hour[] = {8, 12, 16};
-int gsm_minute[] = {0, 0, 0};
+int gsm_minute[] = {39, 0, 0};
 int gsm_second[] = {0, 0, 0};
 
 //Feeding time of fishes. Where index[0] will be for 12 hrs and index[1] will be for 24 hrs.
@@ -45,13 +46,13 @@ int pump1_pin = 48; //pin number for relay that will activate the pump1
 int pump2_pin = 46; //pin number for relay that will activate the pump2
 int pumpcontrol_pin = 11; //pin number for the button of the pump
 int pumpcontrol_led = 28; //pin number for the led indicator of the fishfeeder
-int pump_seconds = 60; //convert minutes to seconds
+int pump_seconds = 5;//60; //convert minutes to seconds
 int pump_count = 0;
 int pump_ctr = 0;
 
 //float switch
 int float_pin = 24;
-int float_seconds = 300;
+int float_seconds = 5;//300;
 int float_count = 0;
 int float_ctr = 0;
 
@@ -100,7 +101,6 @@ Adafruit_FONA fona = Adafruit_FONA(FONA_RST);
 
 
 void setup() {
-  Serial.begin(9600);
   lcd.begin(16, 2);
   lcd.print("Initializing...");
   clock.begin();
@@ -132,8 +132,8 @@ void setup() {
   pinMode(feedcontrol_12_hrs_led, OUTPUT);
   pinMode(feedcontrol_24_hrs, INPUT_PULLUP);
   pinMode(feedcontrol_24_hrs_led, OUTPUT);
+  digitalWrite(feedcontrol_24_hrs_led, HIGH);
 
-  digitalWrite(feedcontrol_24_hrs_led, LOW);
   digitalWrite(feedcontrol_12_hrs_led, LOW);
   
   pinMode(pumpcontrol_pin, INPUT_PULLUP);
@@ -159,11 +159,11 @@ void setup() {
   digitalWrite(feed_pin, HIGH);
 
   pinMode(22, OUTPUT);//negative float sensor
-  pinMode(pump1_pin, OUTPUT);//control of relay1
+  //pinMode(pump1_pin, OUTPUT);//control of relay1
   pinMode(pump2_pin, OUTPUT);//control of relay2
   pinMode(24, INPUT_PULLUP);//pin for float sensor
   digitalWrite(22, LOW);
-  digitalWrite(pump1_pin, HIGH);
+  //digitalWrite(pump1_pin, HIGH);
   digitalWrite(pump2_pin, HIGH);
 
   //lcd power source
@@ -171,6 +171,15 @@ void setup() {
   pinMode(A11, OUTPUT);
   digitalWrite(A7, LOW);
   digitalWrite(A11, LOW);
+
+  //set timer for feeding on start-up
+  dt = clock.getDateTime();
+  default_hour = dt.hour;
+  default_minute = format_minutes(String(dt.minute));
+  default_second = format_seconds(String(dt.second));
+  feed_hour[1] = dt.hour;
+  feed_minute[1] = format_minutes(String(dt.minute));
+  feed_second[1] = format_seconds(String(dt.second));
 }
 
 double avergearray(int* arr, int number){ //function for getting the average of ph values
@@ -261,17 +270,20 @@ void pumpwater(){ //function for the water pump
   if(pump_count < pump_seconds){
     if(pump_msg_ctr == 1 && float_msg_ctr == 0 && feed_msg_ctr == 0 && display_priority == 0){
       lcd.setCursor(0,0);
-      lcd.print("Pumping water..");
+      lcd.print("Pumping water...");
       lcd.setCursor(0,1);
       lcd.print("Time: ");
       lcd.print(String(dt.hour)+":"+format_minutes(String(dt.minute))+":"+format_seconds(String(dt.second))+"..");
     }
-    digitalWrite(pump1_pin, LOW);
+    //digitalWrite(pump1_pin, LOW);
+    disable_float_ctr = 0;
+    delay(500);
     digitalWrite(pump2_pin, LOW);
     digitalWrite(pumpcontrol_led, HIGH);
   } else {
-    digitalWrite(pump1_pin, HIGH);
+    //digitalWrite(pump1_pin, HIGH);
     digitalWrite(pump2_pin, HIGH);
+    delay(1000);
     digitalWrite(pumpcontrol_led, LOW);
     pump_ctr = 0;
     pump_count = 0;
@@ -288,11 +300,14 @@ void floatswitch(){ //function for the water pump
       lcd.print("Time: ");
       lcd.print(String(dt.hour)+":"+format_minutes(String(dt.minute))+":"+format_seconds(String(dt.second))+"..");
     }
-    digitalWrite(pump1_pin, LOW);
+    //digitalWrite(pump1_pin, LOW);
+    disable_pump_ctr = 0;
+    delay(500);
     digitalWrite(pump2_pin, LOW);
   } else {
-    digitalWrite(pump1_pin, HIGH);
+    //digitalWrite(pump1_pin, HIGH);
     digitalWrite(pump2_pin, HIGH);
+    delay(1000);
     float_ctr = 0;
     float_count = 0;
     float_msg_ctr = 0;
@@ -316,7 +331,7 @@ float getPh(){ //function for getting the ph value
 void getSystemData(){
   if(display_count < 6){
     lcd.setCursor(0,0);
-    lcd.print("*Temp: " + String(getTempe()) + "***");
+    lcd.print("*Temp: " + String(getTempe()) + "****");
     lcd.setCursor(0,1);
     lcd.print("*PH Level: " + String(getPh()) + "**");
   } else if(display_count < 10){
@@ -348,14 +363,14 @@ void getSystemData(){
   }
 }
 
-void flushSerial() {
+/*void flushSerial() {
   while (Serial.available())
     Serial.read();
-}
+}*/
 
 void sendSMS(char num[], int len_num, char msg[], int len_msg){//need for testing char num[], int len_num, 
   char sendto[len_num+1], message[len_msg+1];
-  flushSerial();
+  //flushSerial();
   for(int x=0;x<len_num;x++){
     sendto[x] = num[x];
   }
@@ -410,35 +425,27 @@ void loop() {
     }
     
     if(digitalRead(feedcontrol_pin) == LOW || feed_ctr == 1){ //will check if the button for fishfeeder is pressed
-          if(digitalRead(feedcontrol_12_hrs_led) == LOW && digitalRead(feedcontrol_24_hrs_led) == LOW){
-            default_hour = dt.hour;
-            default_minute = format_minutes(String(dt.minute));
-            default_second = format_seconds(String(dt.second));
-            feed_hour[1] = default_hour;
-            feed_minute[1] = default_minute;
-            feed_second[1] = default_second;
-            digitalWrite(feedcontrol_24_hrs_led, HIGH);
-            hr_24_ctr = 1;
-          } else if(feed_ctr == 0){
-            default_hour = dt.hour;
-            default_minute = format_minutes(String(dt.minute));
-            default_second = format_seconds(String(dt.second));
-            if(hr_24_ctr == 1){
-              feed_hour[1] = dt.hour;
-              feed_minute[1] = format_minutes(String(dt.minute));
-              feed_second[1] = format_seconds(String(dt.second));
-            } else if(hr_12_ctr == 1){
-              feed_hour[0] = dt.hour;
-              feed_minute[0] = format_minutes(String(dt.minute));
-              feed_second[0] = format_seconds(String(dt.second));
-            }
-          }
-          feed_msg_ctr = 1;
-          feed_ctr = 1;
-          feedfish();
+      if(feed_ctr == 0){
+        default_hour = dt.hour;
+        default_minute = format_minutes(String(dt.minute));
+        default_second = format_seconds(String(dt.second));
+        if(hr_24_ctr == 1){
+          feed_hour[1] = dt.hour;
+          feed_minute[1] = format_minutes(String(dt.minute));
+          feed_second[1] = format_seconds(String(dt.second));
+        } else if(hr_12_ctr == 1){
+          feed_hour[0] = dt.hour;
+          feed_minute[0] = format_minutes(String(dt.minute));
+          feed_second[0] = format_seconds(String(dt.second));
+        }
+        
+      }
+      feed_msg_ctr = 1;
+      feed_ctr = 1;
+      feedfish();
     }
   
-    if(digitalRead(pumpcontrol_pin) == LOW || pump_ctr == 1){ //will check if the button for water pump is pressed
+    if((digitalRead(pumpcontrol_pin) == LOW || pump_ctr == 1) && disable_pump_ctr == 5){ //will check if the button for water pump is pressed
       pump_msg_ctr = 1;
       pump_ctr = 1;
       pumpwater();
@@ -450,7 +457,7 @@ void loop() {
       getSystemData();
     }
   
-    if(digitalRead(float_pin) == LOW || float_ctr == 1){//will check if float switch activated
+    if((digitalRead(float_pin) == LOW || float_ctr == 1) && disable_float_ctr == 5){//will check if float switch activated
       float_msg_ctr = 1;
       float_ctr = 1;
       floatswitch();
@@ -538,6 +545,14 @@ void loop() {
     if(feed_ctr == 0 && pump_ctr == 0 && display_ctr == 0 && float_ctr == 0){
       displayDateTime();
       start_ctr = 0;
+    }
+
+    if(disable_pump_ctr != 5){
+      disable_pump_ctr++;
+    }
+
+    if(disable_float_ctr != 5){
+      disable_float_ctr++;
     }
     samplingTime2=millis();
   }
