@@ -152,7 +152,9 @@ void setup() {
   digitalWrite(A9, HIGH);
   
   pinMode(system_display_pin, INPUT_PULLUP);// button pin for displaying the sensors data
-  
+
+  pinMode(float_pin, INPUT);
+  digitalWrite(float_pin, HIGH);
   pinMode(feed_pin, OUTPUT);
   digitalWrite(feed_pin, HIGH);
 
@@ -372,10 +374,12 @@ void sendSMS(char num[], int len_num, char msg[], int len_msg){//need for testin
 }
 
 void errorled(){
-  if(float_count < float_seconds){
+  if(error_count < error_seconds){
     digitalWrite(error_led, HIGH);
-  } else {
+    delay(500);
     digitalWrite(error_led, LOW);
+    delay(500);
+  } else {
     error_ctr = 0;
     error_count = 0;
   }
@@ -452,7 +456,7 @@ void loop() {
       floatswitch();
     }
   
-    if(getPh() < 4.6){
+    if(getPh() < 4.6 || error_ctr == 1){
         error_ctr = 1;
         errorled();
         pump_ctr = 1;
