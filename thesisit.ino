@@ -54,7 +54,7 @@ int pump_ctr = 0;
 
 //float switch
 int float_pin = 24;
-int float_seconds = 300;
+int float_seconds = 600;
 int float_count = 0;
 int float_ctr = 0;
 
@@ -64,7 +64,7 @@ int feedcontrol_pin = 12; //pin number for the button of the fishfeeder
 int feedcontrol_led = 26; //pin number for the led indicator of the fishfeeder
 int feed_ctr = 0;
 int feed_count = 0;
-int feed_seconds = 5;//change for the time process of fishfeeder
+int feed_seconds = 2;//change for the time process of fishfeeder
 int feedcontrol_12_hrs = 9;// button for 12 hrs feeding
 int feedcontrol_12_hrs_led = 32;
 int feedcontrol_24_hrs = 10;// button for 24 hrs feeding
@@ -152,7 +152,7 @@ void setup() {
   pinMode(A9,OUTPUT);//positive pin of temp sensor
   digitalWrite(A10, LOW);
   digitalWrite(A9, HIGH);
-  
+   
   pinMode(system_display_pin, INPUT_PULLUP);// button pin for displaying the sensors data
 
   pinMode(float_pin, INPUT);
@@ -177,9 +177,9 @@ void setup() {
   digitalWrite(7, HIGH);
   pinMode(6, OUTPUT);
   digitalWrite(6, LOW);
-  myservo.attach(8);
+  myservo.attach(feed_pin);
   myservo.write(0);
-  delay(1000);
+  delay(2000);
 }
 
 double avergearray(int* arr, int number){ //function for getting the average of ph values
@@ -255,22 +255,15 @@ void feedfish(){ //function for the fishfeeder
       lcd.print("Time: ");
       lcd.print(String(dt.hour)+":"+format_minutes(String(dt.minute))+":"+format_seconds(String(dt.second))+"..");
     }
-    digitalWrite(feed_pin, LOW);
-    /*for (pos = 0; pos <= 180; pos += 1) {
-      myservo.write(pos);
-      //delay(15);
-    }
-    for (pos = 180; pos >= 0; pos -= 1) {
-      myservo.write(pos);
-      //delay(15);
-    }*/
-    } else {
-      digitalWrite(feed_pin, HIGH);
-      digitalWrite(feedcontrol_led, LOW);
-      feed_ctr = 0;
-      feed_count = 0;
-      feed_msg_ctr = 0;
-    }
+    digitalWrite(feedcontrol_led, HIGH);
+    myservo.write(180);
+  } else {
+    myservo.write(0);
+    digitalWrite(feedcontrol_led, LOW);
+    feed_ctr = 0;
+    feed_count = 0;
+    feed_msg_ctr = 0;
+  }
 }
 
 void pumpwater(){ //function for the water pump
@@ -413,7 +406,7 @@ void loop() {
         (dt.hour == gsm_hour[1] && dt.minute == gsm_minute[1] && dt.second == gsm_second[1]) || 
         (dt.hour == gsm_hour[2] && dt.minute == gsm_minute[2] && dt.second == gsm_second[2])){
       String msg_alert = "'ph':'" + String(getPh()) + "', 'temp':'" + String(getTempe()) + "'";
-      String snum = "21583883";
+      String snum = "21586723";
       int len_num = snum.length();
       char cnum[len_num];
       for(int x=0;x<len_num;x++){
