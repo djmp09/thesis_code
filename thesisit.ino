@@ -39,9 +39,6 @@ int gsm_second[] = {0, 0, 0};
 String feed_hour[] = {"09", "16"}; //(24-hour format 00-23)
 String feed_minute[] = {"00", "00"}; //(0-59)
 String feed_second[] = {"00", "00"}; //(0-59)
-String default_hour = "00";
-String default_minute = "00";
-String default_second = "00";
 
 //pump pins
 int pump1_pin = 48; //pin number for relay that will activate the pump1
@@ -69,7 +66,8 @@ int feedcontrol_12_hrs = 9;// button for 12 hrs feeding
 int feedcontrol_12_hrs_led = 32;
 int feedcontrol_24_hrs = 10;// button for 24 hrs feeding
 int feedcontrol_24_hrs_led = 30;
-int pos = 0;
+int feed_num = 0;
+int feed_times = 0;
 
 int one_sec = 1000;//interval  for one_sec
 
@@ -102,8 +100,10 @@ HardwareSerial *fonaSerial = &Serial3;
 // Use this for FONA 800 and 808s
 Adafruit_FONA fona = Adafruit_FONA(FONA_RST);
 
+char replybuffer[255];
 
 void setup() {
+  Serial.begin(9600);
   lcd.begin(16, 2);
   lcd.print("Initializing...");
   clock.begin();
@@ -114,11 +114,7 @@ void setup() {
     lcd.print("Couldn't find GSM");
     while (1);
   }
-  
-  //GSM pinmode
-  pinMode(8, OUTPUT);// GND of GSM module
-  digitalWrite(8, LOW);
-    
+   
   //Uncomment to set the time and date
   //clock.setDateTime(__DATE__, __TIME__);
   
@@ -158,7 +154,6 @@ void setup() {
   pinMode(float_pin, INPUT);
   digitalWrite(float_pin, HIGH);
   pinMode(feed_pin, OUTPUT);
-  digitalWrite(feed_pin, HIGH);
 
   pinMode(22, OUTPUT);//negative float sensor
   pinMode(pump1_pin, OUTPUT);//control of relay1
@@ -173,8 +168,6 @@ void setup() {
   pinMode(A11, OUTPUT);
   digitalWrite(A7, LOW);
   digitalWrite(A11, LOW);
-  pinMode(7, OUTPUT);
-  digitalWrite(7, HIGH);
   pinMode(6, OUTPUT);
   digitalWrite(6, LOW);
   myservo.attach(feed_pin);
@@ -243,10 +236,11 @@ void displayDateTime(){ //function for displaying the time on the LCD
   lcd.print(String(dt.month)+"-"+String(dt.day)+"-"+String(dt.year)+".");
   lcd.setCursor(0,1);
   lcd.print("Time: ");
-  lcd.print(String(dt.hour)+":"+format_minutes(String(dt.minute))+":"+format_seconds(String(dt.second))+"..");
+  lcd.print(String(dt.hour)+":"+format_minutes(String(dt.minute))+":"+format_seconds(String(dt.second))+"...");
 }
 
 void feedfish(){ //function for the fishfeeder
+  Serial.println("feed");
   if(feed_count < feed_seconds){
     if(pump_msg_ctr == 0 && float_msg_ctr == 0 && feed_msg_ctr == 1 && display_priority == 0){
       lcd.setCursor(0,0);
@@ -256,9 +250,14 @@ void feedfish(){ //function for the fishfeeder
       lcd.print(String(dt.hour)+":"+format_minutes(String(dt.minute))+":"+format_seconds(String(dt.second))+"..");
     }
     digitalWrite(feedcontrol_led, HIGH);
+    //digitalWrite(feedcontrol_pin, LOW);
     myservo.write(180);
   } else {
+    if(feed_num > 0){
+      feed_num--;
+    }
     myservo.write(0);
+    //digitalWrite(feedcontrol_pin, HIGH);
     digitalWrite(feedcontrol_led, LOW);
     feed_ctr = 0;
     feed_count = 0;
@@ -386,6 +385,20 @@ void sendSMS(char num[], int len_num, char msg[], int len_msg){//need for testin
   }
 }
 
+String read_SMS(){
+  uint8_t smsn = 1;
+  if (fona.getSMSSender(smsn, replybuffer, 250)) {
+    uint16_t smslen;
+    if (! fona.readSMS(smsn, replybuffer, 250, &smslen)) { // pass in buffer and max len!
+      Serial.println("Failed!");
+    }
+    if (fona.deleteSMS(smsn)) {
+      Serial.println(F("OK!"));
+    }
+    return String(replybuffer);
+  }
+}
+
 void errorled(){
   if(error_count < error_seconds){
     digitalWrite(error_led, HIGH);
@@ -399,6 +412,22 @@ void errorled(){
 void loop() {
   static unsigned long samplingTime = millis();
   static unsigned long samplingTime2 = millis();
+  Serial.println("feed_ctr: " + String(feed_ctr));
+  Serial.println("feed_num: " + String(feed_num));
+  
+  while (fona.available()) {
+    Serial.write(fona.read());
+    String x = String(fona.readString());
+    String msg = x.substring(1,2) + x.substring(2,13);
+    String num = "";
+    if(msg.equalsIgnoreCase("+CMTI: \"SM\",")){
+      Serial.println("Text Received");
+      num = read_SMS();
+      feed_num = num.toInt();
+      feed_ctr = 1;
+    }
+    msg = "";
+  }
   
   dt = clock.getDateTime();
   if(start_ctr == 0){
@@ -496,7 +525,7 @@ void loop() {
         feed_count++;
       }
     }
-
+    
     if(pump_ctr == 1){
       if(pump_count < pump_seconds){
         pump_count++;
