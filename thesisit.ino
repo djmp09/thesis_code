@@ -38,10 +38,12 @@ int gsm_minute[] = {0, 0, 0};
 int gsm_second[] = {0, 0, 0};
 String gsm_msg = "";
 String gsm_cmd = "";
+String sender_num = "";
+String msg_alert = "";
 
 //Feeding time of fishes. Where index[0] will be for 12 hrs and index[1] will be for 24 hrs.
-int feed_hour[] = {9, 16}; //(24-hour format 00-23)
-int feed_minute[] = {0,30}; //(0-59)
+int feed_hour[] = {8, 16}; //(24-hour format 00-23)
+int feed_minute[] = {30,30}; //(0-59)
 int feed_second[] = {0, 0}; //(0-59)
 
 //pump pins
@@ -74,6 +76,10 @@ int feed_num = 1;
 int feed_times = 0;
 int feed_ctr_once = 0;
 
+int feed_delay_ctr = 0;
+int feed_delay_count = 0;
+int feed_delay_seconds = 1;
+
 int one_sec = 1000;//interval  for one_sec
 
 int system_display_pin = 13;// button pin for displaying the sensors data
@@ -82,7 +88,8 @@ int display_count = 0;
 int display_seconds = 12;
 
 int temp_sensor = 4; //pin number for temperature sensor
-float temperature = 0;
+float temperature = 0.0;
+float current_temp = 0.0;
 
 float pHValue,voltage;
 
@@ -90,9 +97,8 @@ OneWire oneWirePin(temp_sensor);
 DallasTemperature sensors(&oneWirePin);
 
 #define SensorPin A8            //pH meter Analog output to Arduino Analog Input 0
-#define Offset 1.39               //deviation compensate
-#define samplingInterval 20
-#define printInterval 800
+#define Offset 0.64             //deviation compensate
+#define samplingInterval 10
 #define ArrayLenth 40    //times of collection
 int pHArray[ArrayLenth];   //Store the average value of the sensor feedback
 int pHArrayIndex=0; 
@@ -161,7 +167,9 @@ void setup() {
 
   pinMode(22, OUTPUT);//negative float sensor
   pinMode(pump1_pin, OUTPUT);//control of relay1
+  digitalWrite(pump1_pin, LOW);
   pinMode(pump2_pin, OUTPUT);//control of relay2
+  digitalWrite(pump2_pin, HIGH);
   pinMode(24, INPUT_PULLUP);//pin for float sensor
   digitalWrite(22, LOW);
   digitalWrite(pump1_pin, HIGH);
@@ -219,7 +227,7 @@ double avergearray(int* arr, int number){ //function for getting the average of 
 }
 
 String format_seconds(String sec){
-  sec = String(dt.second);
+  //sec = String(dt.second);
   if(sec.length() == 1){
     sec = 0 + sec;
   }
@@ -227,7 +235,7 @@ String format_seconds(String sec){
 }
 
 String format_minutes(String mint){
-  mint = String(dt.minute);
+  //mint = String(dt.minute);
   if(mint.length() == 1){
     mint = 0 + mint;
   }
@@ -237,7 +245,7 @@ void displayDateTime(){ //function for displaying the time on the LCD
   lcd.clear();
   lcd.setCursor(0,0);
   lcd.print("Date: ");
-  lcd.print(String(dt.month)+"-"+String(dt.day)+"-"+String(dt.year)+".");
+  lcd.print(String(dt.month)+"-"+String(dt.day)+"-"+String(dt.year)+"..");
   lcd.setCursor(0,1);
   lcd.print("Time: ");
   lcd.print(String(dt.hour)+":"+format_minutes(String(dt.minute))+":"+format_seconds(String(dt.second))+"...");
@@ -252,18 +260,21 @@ void feedfish(){ //function for the fishfeeder
       lcd.print("Time: ");
       lcd.print(String(dt.hour)+":"+format_minutes(String(dt.minute))+":"+format_seconds(String(dt.second))+"..");
     }
-    digitalWrite(feedcontrol_led, HIGH);
-    myservo.write(180);
-    /*if(feed_ctr_once == 0){
+    if(feed_delay_ctr == 0){
+      myservo.write(180);
+      digitalWrite(feedcontrol_led, HIGH);
+      feed_delay_ctr = 1;
+    }
+    if(feed_ctr_once == 0){
       feed_ctr_once = 1;  
       feed_times = feed_num;
-    }*/
+    }
   } else {
-    /*if(feed_times != 0 && feed_ctr_once == 1){
+    if(feed_times > 0 && feed_delay_ctr == 1){
       myservo.write(0);
-      digitalWrite(feedcontrol_led, LOW);
-      feed_times--;
       feed_count = 0;
+      feed_times--;
+      feed_delay_count = 0;
     } else {
       feed_ctr_once = 0;
       feed_times = 0;
@@ -272,12 +283,7 @@ void feedfish(){ //function for the fishfeeder
       feed_msg_ctr = 0;
       myservo.write(0);
       digitalWrite(feedcontrol_led, LOW);
-    }*/
-    feed_ctr = 0;
-    feed_count = 0;
-    feed_msg_ctr = 0;
-    myservo.write(0);
-    digitalWrite(feedcontrol_led, LOW);
+    }
   }
 }
 
@@ -290,14 +296,13 @@ void pumpwater(){ //function for the water pump
       lcd.print("Time: ");
       lcd.print(String(dt.hour)+":"+format_minutes(String(dt.minute))+":"+format_seconds(String(dt.second))+"..");
     }
-    //digitalWrite(pump1_pin, LOW);
     disable_float_ctr = 0;
-    delay(500);
-    digitalWrite(pump1_pin, LOW);
+    digitalWrite(pump1_pin, HIGH);
+    digitalWrite(pump2_pin, LOW);
     digitalWrite(pumpcontrol_led, HIGH);
   } else {
-    digitalWrite(pump1_pin, HIGH);
-    delay(1000);
+    digitalWrite(pump1_pin, LOW);
+    digitalWrite(pump2_pin, HIGH);
     digitalWrite(pumpcontrol_led, LOW);
     pump_ctr = 0;
     pump_count = 0;
@@ -314,15 +319,12 @@ void floatswitch(){ //function for the water pump
       lcd.print("Time: ");
       lcd.print(String(dt.hour)+":"+format_minutes(String(dt.minute))+":"+format_seconds(String(dt.second))+"..");
     }
-    //digitalWrite(pump1_pin, LOW);
     disable_pump_ctr = 0;
-    delay(500);
-    digitalWrite(pump1_pin, LOW);
+    digitalWrite(pump1_pin, HIGH);
     digitalWrite(pump2_pin, LOW);
   } else {
-    digitalWrite(pump1_pin, HIGH);
+    digitalWrite(pump1_pin, LOW);
     digitalWrite(pump2_pin, HIGH);
-    delay(1000);
     float_ctr = 0;
     float_count = 0;
     float_msg_ctr = 0;
@@ -366,13 +368,13 @@ void getSystemData(){
     lcd.setCursor(0,1);
     String feed_time = "--Not-yet-set---";
     if(digitalRead(feedcontrol_12_hrs_led) == HIGH){
-      if(dt.hour < 9 || dt.hour > 15){
-        feed_time = String("----"+feed_hour[0]) +":"+ String(feed_minute[0]) +":"+ String(feed_second[0]+"-----");
+      if((dt.hour < 8 && dt.minute < 30) || (dt.hour > 16 && dt.minute > 30)){
+        feed_time = "----"+String(feed_hour[0]) +":"+format_minutes(String(feed_minute[0]))+":"+format_seconds(String(feed_second[0]))+"-----";
       } else {
-        feed_time = String("----"+feed_hour[1]) +":"+ String(feed_minute[1]) +":"+ String(feed_second[1]+"-----");
+        feed_time = "----"+String(feed_hour[1]) +":"+format_minutes(String(feed_minute[1]))+":"+format_seconds(String(feed_second[1]))+"-----";
       }  
     }else if(digitalRead(feedcontrol_24_hrs_led) == HIGH){
-      feed_time = String("----"+feed_hour[1]) +":"+ String(feed_minute[1]) +":"+ String(feed_second[1]+"-----");
+      feed_time = "----"+String(feed_hour[1]) +":"+format_minutes(String(feed_minute[1]))+":"+format_seconds(String(feed_second[1]))+"-----";
     }
     lcd.print(feed_time);
   } else {
@@ -395,8 +397,7 @@ void sendSMS(char num[], int len_num, char msg[], int len_msg){//need for testin
   
   if (!fona.sendSMS(sendto, message)) {
     lcd.clear();
-    lcd.setCursor(0,0);
-    lcd.print("SMS Report sent!");
+    lcd.print("SMS sent!");
     delay(1000);
   }
 }
@@ -404,6 +405,12 @@ void sendSMS(char num[], int len_num, char msg[], int len_msg){//need for testin
 String read_SMS(){
   uint8_t smsn = 1;
   if (fona.getSMSSender(smsn, replybuffer, 250)) {
+    lcd.clear();
+    lcd.print("Sender Number:");
+    lcd.setCursor(0,1);
+    lcd.print(String(replybuffer));
+    sender_num = String(replybuffer);
+    delay(1000);
     uint16_t smslen;
     if (! fona.readSMS(smsn, replybuffer, 250, &smslen)) { // pass in buffer and max len!
       Serial.println("Failed!");
@@ -474,13 +481,16 @@ void loop() {
   static unsigned long samplingTime = millis();
   static unsigned long samplingTime2 = millis();
   
+  current_temp = getTempe();
+  
   while (fona.available()) {
     Serial.write(fona.read());
     String x = String(fona.readString());
     String msg = x.substring(1,2) + x.substring(2,13);
     if(msg.equalsIgnoreCase("+CMTI: \"SM\",")){
       gsm_msg = read_SMS();
-      if(!gsm_msg.equalsIgnoreCase("Feed") && !gsm_msg.equalsIgnoreCase("Pump") && !gsm_msg.equalsIgnoreCase("Once") && !gsm_msg.equalsIgnoreCase("Twice")){
+      if(!gsm_msg.equalsIgnoreCase("Feed") && !gsm_msg.equalsIgnoreCase("Pump") && !gsm_msg.equalsIgnoreCase("Once") && !gsm_msg.equalsIgnoreCase("Twice")
+        && !gsm_msg.equalsIgnoreCase("Load") && !gsm_msg.equalsIgnoreCase("Bal")){
         feed_num = gsm_msg.toInt();
         lcd.clear();
         lcd.print("Gsm_msg:");
@@ -492,27 +502,29 @@ void loop() {
         lcd.setCursor(0,1);
         lcd.print(feed_num);
         delay(1000);
+        msg_alert = "You have change feed num to " + gsm_msg;
       } else {
         lcd.clear();
         lcd.print("Gsm_msg:");
         lcd.setCursor(0,1);
         lcd.print(gsm_msg);
         delay(1000);
+        msg_alert = "You have texted " + gsm_msg;
         gsm_cmd = gsm_msg;
-        String msg_alert = "Received Cmd: " + gsm_msg;
-        String snum = "09753724217";
-        int len_num = snum.length();
-        char cnum[len_num];
-        for(int x=0;x<len_num;x++){
-          cnum[x] = snum.charAt(x);
-        }
-        int len_msg = msg_alert.length();
-        char cmsg[len_msg];
-        for(int x=0;x<len_msg;x++){
-          cmsg[x] = msg_alert.charAt(x);
-        }
-        sendSMS(cnum, len_num, cmsg, len_msg);
       }
+      //reply sa nag text
+      String snum = sender_num;
+      int len_num = snum.length();
+      char cnum[len_num];
+      for(int x=0;x<len_num;x++){
+        cnum[x] = snum.charAt(x);
+      }
+      int len_msg = msg_alert.length();
+      char cmsg[len_msg];
+      for(int x=0;x<len_msg;x++){
+        cmsg[x] = msg_alert.charAt(x);
+      }
+      sendSMS(cnum, len_num, cmsg, len_msg);
     }
     msg = "";
   }
@@ -522,10 +534,58 @@ void loop() {
     start();
     delay(1000);
   } else {
+    
+    if(gsm_cmd.equalsIgnoreCase("Bal")){
+      String msg_alert = "BAL";
+      String snum = "222";
+      int len_num = snum.length();
+      char cnum[len_num];
+      for(int x=0;x<len_num;x++){
+        cnum[x] = snum.charAt(x);
+      }
+      int len_msg = msg_alert.length();
+      char cmsg[len_msg];
+      for(int x=0;x<len_msg;x++){
+        cmsg[x] = msg_alert.charAt(x);
+      }
+      sendSMS(cnum, len_num, cmsg, len_msg);
+      gsm_cmd = "";
+    }
+    
+    if(gsm_cmd.equalsIgnoreCase("Load")){
+      String msg_alert = "ATXT80";
+      String snum = "8080";
+      int len_num = snum.length();
+      char cnum[len_num];
+      for(int x=0;x<len_num;x++){
+        cnum[x] = snum.charAt(x);
+      }
+      int len_msg = msg_alert.length();
+      char cmsg[len_msg];
+      for(int x=0;x<len_msg;x++){
+        cmsg[x] = msg_alert.charAt(x);
+      }
+      sendSMS(cnum, len_num, cmsg, len_msg);
+      msg_alert = "GOTSCOMBOHAA17";
+      snum = "8080";
+      len_num = snum.length();
+      cnum[len_num];
+      for(int x=0;x<len_num;x++){
+        cnum[x] = snum.charAt(x);
+      }
+      len_msg = msg_alert.length();
+      cmsg[len_msg];
+      for(int x=0;x<len_msg;x++){
+        cmsg[x] = msg_alert.charAt(x);
+      }
+      sendSMS(cnum, len_num, cmsg, len_msg);
+      gsm_cmd = "";
+    }
+    
     if((dt.hour == gsm_hour[0] && dt.minute == gsm_minute[0] && dt.second == gsm_second[0]) || 
         (dt.hour == gsm_hour[1] && dt.minute == gsm_minute[1] && dt.second == gsm_second[1]) || 
         (dt.hour == gsm_hour[2] && dt.minute == gsm_minute[2] && dt.second == gsm_second[2])){
-      String msg_alert = "'ph':'" + String(getPh()) + "', 'temp':'" + String(getTempe()) + "'";
+      String msg_alert = "'ph':'" + String(getPh()) + "', 'temp':'" + String(current_temp) + "'";
       String snum = "21586723";
       int len_num = snum.length();
       char cnum[len_num];
@@ -628,6 +688,10 @@ void loop() {
     if(feed_ctr == 1){
       if(feed_count < feed_seconds){
         feed_count++;
+        feed_delay_count++;
+      }
+      if(feed_delay_count == feed_delay_seconds){
+        feed_delay_ctr = 0;
       }
     }
     
