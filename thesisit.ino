@@ -146,7 +146,6 @@ void setup() {
   pinMode(error_led, OUTPUT);
   digitalWrite(error_led, LOW);
   
-  //pinMode(ph_pin, INPUT_PULLUP);
   pinMode(feedcontrol_pin, INPUT_PULLUP);
   pinMode(feedcontrol_led, OUTPUT);
   pinMode(feedcontrol_12_hrs, INPUT_PULLUP);
@@ -202,7 +201,7 @@ void setup() {
   delay(1000);
 }
 
-void(* resetFunc)(void) = 0;
+void(* resetFunc)(void) = 0; //reset function
 
 double avergearray(int* arr, int number){ //function for getting the average of ph values
   int i;
@@ -243,7 +242,7 @@ double avergearray(int* arr, int number){ //function for getting the average of 
   return avg;
 }
 
-String format_seconds(String sec){
+String format_seconds(String sec){ //function for formatting the seconds
   //sec = String(dt.second);
   if(sec.length() == 1){
     sec = 0 + sec;
@@ -251,7 +250,7 @@ String format_seconds(String sec){
   return sec;
 }
 
-String format_minutes(String mint){
+String format_minutes(String mint){ //function for formatting the minutes
   //mint = String(dt.minute);
   if(mint.length() == 1){
     mint = 0 + mint;
@@ -332,7 +331,7 @@ void pumpwater(){ //function for the water pump
   return;
 }
 
-void floatswitch(){ //function for the water pump
+void floatswitch(){ //function for the float sensor
   if(float_count < float_seconds){
     if(pump_msg_ctr == 0 && float_msg_ctr == 1 && feed_msg_ctr == 0 && display_priority == 0){
       lcd.setCursor(0,0);
@@ -368,7 +367,7 @@ float getPh(){ //function for getting the ph value
   return pHValue;
 }
 
-void getSystemData(){
+void getSystemData(){ //function for displaying system data
   if(display_count < 6){
     lcd.setCursor(0,0);
     lcd.print("*Temp: " + String(getTempe()) + "****");
@@ -418,7 +417,7 @@ void getSystemData(){
   return;
 }
 
-void sendSMS(char num[], int len_num, char msg[], int len_msg){//need for testing char num[], int len_num, 
+void sendSMS(char num[], int len_num, char msg[], int len_msg){ //function for sending sms
   char sendto[len_num+1], message[len_msg+1];
   for(int x=0;x<len_num;x++){
     sendto[x] = num[x];
@@ -437,7 +436,7 @@ void sendSMS(char num[], int len_num, char msg[], int len_msg){//need for testin
   return;
 }
 
-String read_SMS(){
+String read_SMS(){ //function for reading sms then deleting the sms
   uint8_t smsn = 1;
   if (fona.getSMSSender(smsn, replybuffer, 250)) {
     lcd.clear();
@@ -461,7 +460,7 @@ String read_SMS(){
   }
 }
 
-void del_sms_all(){
+void del_sms_all(){ //function for deleting all sms on start up of the system
   int8_t smsnum = fona.getNumSMS();
   Serial.println(String(smsnum));
   if(smsnum > 0){
@@ -474,7 +473,7 @@ void del_sms_all(){
   return;
 }
 
-void errorled(){
+void errorled(){ //function for the error LED
   if(error_count < error_seconds){
     digitalWrite(error_led, HIGH);
   } else {
@@ -485,7 +484,7 @@ void errorled(){
   return;
 }
 
-void start(){
+void start(){ //function for initialization of the system
     if(start_count < 1){
       lcd.print("Initializing.");
     } else if(start_count < 6){
@@ -548,7 +547,7 @@ void loop() {
   
   current_temp = getTempe();
   
-  while (fona.available()) {
+  while (fona.available()) { //while loop for receiving sms
     Serial.write(fona.read());
     String x = String(fona.readString());
     String msg = x.substring(1,2) + x.substring(2,13);
@@ -608,7 +607,7 @@ void loop() {
   }
   
   dt = clock.getDateTime();
-  if(start_ctr == 1){
+  if(start_ctr == 1){ 
     start();
     delay(1000);
   } else {
@@ -616,20 +615,7 @@ void loop() {
        (dt.hour == reset_hour[1] && dt.minute == reset_minute[1] && dt.second == reset_second[1]) ||
        (dt.hour == reset_hour[2] && dt.minute == reset_minute[2] && dt.second == reset_second[2]) ||
        (dt.hour == reset_hour[3] && dt.minute == reset_minute[3] && dt.second == reset_second[3])){
-        /*String snum = "21586723";
-        msg_alert = "reset";
         
-        int len_num = snum.length();
-        char cnum[len_num];
-        for(int x=0;x<len_num;x++){
-          cnum[x] = snum.charAt(x);
-        }
-        int len_msg = msg_alert.length();
-        char cmsg[len_msg];
-        for(int x=0;x<len_msg;x++){
-          cmsg[x] = msg_alert.charAt(x);
-        }
-        sendSMS(cnum, len_num, cmsg, len_msg);*/
         digitalWrite(pump1_pin, HIGH);
         digitalWrite(pump2_pin, HIGH);
         resetFunc();
@@ -646,53 +632,6 @@ void loop() {
       }
       int len_msg = msg_alert.length();
       char cmsg[len_msg];
-      for(int x=0;x<len_msg;x++){
-        cmsg[x] = msg_alert.charAt(x);
-      }
-      sendSMS(cnum, len_num, cmsg, len_msg);
-      gsm_cmd = "";
-    }
-    
-    if(gsm_cmd.equalsIgnoreCase("Bal")){
-      msg_alert = "BAL";
-      String snum = "222";
-      int len_num = snum.length();
-      char cnum[len_num];
-      for(int x=0;x<len_num;x++){
-        cnum[x] = snum.charAt(x);
-      }
-      int len_msg = msg_alert.length();
-      char cmsg[len_msg];
-      for(int x=0;x<len_msg;x++){
-        cmsg[x] = msg_alert.charAt(x);
-      }
-      sendSMS(cnum, len_num, cmsg, len_msg);
-      gsm_cmd = "";
-    }
-    
-    if(gsm_cmd.equalsIgnoreCase("Load")){
-      msg_alert = "ATXT80";
-      String snum = "8080";
-      int len_num = snum.length();
-      char cnum[len_num];
-      for(int x=0;x<len_num;x++){
-        cnum[x] = snum.charAt(x);
-      }
-      int len_msg = msg_alert.length();
-      char cmsg[len_msg];
-      for(int x=0;x<len_msg;x++){
-        cmsg[x] = msg_alert.charAt(x);
-      }
-      sendSMS(cnum, len_num, cmsg, len_msg);
-      msg_alert = "GOTSCOMBOHAA17";
-      snum = "8080";
-      len_num = snum.length();
-      cnum[len_num];
-      for(int x=0;x<len_num;x++){
-        cnum[x] = snum.charAt(x);
-      }
-      len_msg = msg_alert.length();
-      cmsg[len_msg];
       for(int x=0;x<len_msg;x++){
         cmsg[x] = msg_alert.charAt(x);
       }
