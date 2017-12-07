@@ -1,6 +1,7 @@
 #include <Wire.h>
 #include <DS3231.h>
 #include <Servo.h>
+#include <EEPROM.h>
 
 Servo myservo;
 DS3231 clock;
@@ -48,6 +49,8 @@ String gsm_msg = "";
 String gsm_cmd = "";
 String sender_num = "";
 String msg_alert = "";
+int globe_dev_num_arr[8] = {2,1,5,8,6,9,8,9};
+String globe_dev_num = "";
 
 //Feeding time of fishes. Where index[0] will be for 12 hrs and index[1] will be for 24 hrs.
 int feed_hour[] = {8, 16}; //(24-hour format 00-23)
@@ -109,7 +112,7 @@ OneWire oneWirePin(temp_sensor);
 DallasTemperature sensors(&oneWirePin);
 
 #define SensorPin A8            //pH meter Analog output to Arduino Analog Input 0
-#define Offset 0.64             //deviation compensate
+#define Offset 3.74             //deviation compensate
 #define samplingInterval 10
 #define ArrayLenth 40    //times of collection
 int pHArray[ArrayLenth];   //Store the average value of the sensor feedback
@@ -199,6 +202,10 @@ void setup() {
   myservo.attach(feed_pin);
   myservo.write(0);
   delay(1000);
+  
+  for(int x=0;x<8;x++){
+    globe_dev_num += String(EEPROM.read(x));
+  }
 }
 
 void(* resetFunc)(void) = 0; //reset function
@@ -523,7 +530,7 @@ void start(){ //function for initialization of the system
     start_ctr = 0;
     start_count = 0;
 
-    String snum = "21586723";
+    String snum = globe_dev_num;
     msg_alert = "ask";
     
     int len_num = snum.length();
@@ -537,6 +544,8 @@ void start(){ //function for initialization of the system
       cmsg[x] = msg_alert.charAt(x);
     }
     sendSMS(cnum, len_num, cmsg, len_msg);
+
+    
   }
   return;
 }
@@ -546,15 +555,27 @@ void loop() {
   static unsigned long samplingTime2 = millis();
   
   current_temp = getTempe();
-  
+  Serial.println(globe_dev_num);
+   
   while (fona.available()) { //while loop for receiving sms
     Serial.write(fona.read());
     String x = String(fona.readString());
     String msg = x.substring(1,2) + x.substring(2,13);
     if(msg.equalsIgnoreCase("+CMTI: \"SM\",")){
       gsm_msg = read_SMS();
-
-      if(gsm_msg.equalsIgnoreCase("Status")){
+      if(gsm_msg.length() == 8){
+        for(int x = 0; x<8; x++){
+          EEPROM.write(x, gsm_msg.substring(x,x+1).toInt());
+        }
+        for(int x=0;x<8;x++){
+          globe_dev_num_arr[x] = gsm_msg.substring(x,x+1).toInt();
+        }
+        globe_dev_num = "";
+        for(int x=0;x<8;x++){
+          globe_dev_num += String(globe_dev_num_arr[x]);
+        }
+        msg_alert = "You have changed the globe developer number to " + gsm_msg;
+      }else if(gsm_msg.equalsIgnoreCase("Status")){
         gsm_cmd = gsm_msg;
       } else if(gsm_msg.toInt()){
         feed_num = gsm_msg.toInt();
@@ -583,6 +604,7 @@ void loop() {
           lcd.clear();
           lcd.print("Invalid keyword!");
           delay(1000);
+          del_sms_all();
           invalid_ctr = 1;
         }
       }
@@ -622,7 +644,7 @@ void loop() {
     }
     
     if(gsm_cmd.equalsIgnoreCase("Status")){
-      String snum = "21586723";
+      String snum = globe_dev_num;
       msg_alert = "'ph':'" + String(getPh()) + "','temp':'" + String(current_temp) + "','water':'"+ h2o_level +"'";
       
       int len_num = snum.length();
@@ -638,12 +660,14 @@ void loop() {
       sendSMS(cnum, len_num, cmsg, len_msg);
       gsm_cmd = "";
     }
+
+    
     
     if((dt.hour == gsm_hour[0] && dt.minute == gsm_minute[0] && dt.second == gsm_second[0]) || 
        (dt.hour == gsm_hour[1] && dt.minute == gsm_minute[1] && dt.second == gsm_second[1]) || 
        (dt.hour == gsm_hour[2] && dt.minute == gsm_minute[2] && dt.second == gsm_second[2])){
       msg_alert = "'ph':'" + String(getPh()) + "','temp':'" + String(current_temp) + "','water':'"+ h2o_level +"'";
-      String snum = "21586723";
+      String snum = globe_dev_num;
       int len_num = snum.length();
       char cnum[len_num];
       for(int x=0;x<len_num;x++){
@@ -702,7 +726,7 @@ void loop() {
       h2o_level = "Very Low";
     }
     
-    if(getPh() < 4.6 || error_ctr == 1){
+    if(getPh() < 3 || error_ctr == 1){
       error_ctr = 1;
       errorled();
       pump_ctr = 1;
