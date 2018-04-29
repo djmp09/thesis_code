@@ -49,7 +49,7 @@ String gsm_msg = "";
 String gsm_cmd = "";
 String sender_num = "";
 String msg_alert = "";
-int globe_dev_num_arr[8] = {2,1,5,8,6,9,8,9};
+int globe_dev_num_arr[8] = {2,1,5,8,6,7,2,3};
 String globe_dev_num = "";
 
 //Feeding time of fishes. Where index[0] will be for 12 hrs and index[1] will be for 24 hrs.
@@ -68,7 +68,7 @@ int pump_ctr = 0;
 
 //float switch
 int float_pin = 24;
-int float_seconds = 180;
+int float_seconds =  180;
 int float_count = 0;
 int float_ctr = 0;
 
@@ -206,6 +206,12 @@ void setup() {
   for(int x=0;x<8;x++){
     globe_dev_num += String(EEPROM.read(x));
   }
+  lcd.print("Globe Dev Num:");
+  lcd.setCursor(0,1);
+  lcd.print(globe_dev_num);
+  delay(3000);
+  lcd.clear();
+  
 }
 
 void(* resetFunc)(void) = 0; //reset function
@@ -469,7 +475,6 @@ String read_SMS(){ //function for reading sms then deleting the sms
 
 void del_sms_all(){ //function for deleting all sms on start up of the system
   int8_t smsnum = fona.getNumSMS();
-  Serial.println(String(smsnum));
   if(smsnum > 0){
     for(int x=1;x<=smsnum;x++){
       if (fona.deleteSMS(x)) {
@@ -555,7 +560,6 @@ void loop() {
   static unsigned long samplingTime2 = millis();
   
   current_temp = getTempe();
-  Serial.println(globe_dev_num);
    
   while (fona.available()) { //while loop for receiving sms
     Serial.write(fona.read());
@@ -714,7 +718,7 @@ void loop() {
       getSystemData();
     }
   
-    if((digitalRead(float_pin) == LOW || float_ctr == 1) && disable_float_ctr == 5){//will check if float switch activated
+    if((digitalRead(float_pin) == HIGH || float_ctr == 1) && disable_float_ctr == 5){//will check if float switch activated
       float_msg_ctr = 1;
       float_ctr = 1;
       floatswitch();
