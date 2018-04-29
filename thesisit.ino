@@ -68,7 +68,7 @@ int pump_ctr = 0;
 
 //float switch
 int float_pin = 24;
-int float_seconds =  180;
+int float_seconds =  1800;
 int float_count = 0;
 int float_ctr = 0;
 
