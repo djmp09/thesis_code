@@ -87,7 +87,7 @@ int feedcontrol_12_hrs = 9;// button for 12 hrs feeding
 int feedcontrol_12_hrs_led = 32;
 int feedcontrol_24_hrs = 10;// button for 24 hrs feeding
 int feedcontrol_24_hrs_led = 30;
-int feed_num = 1;
+int feed_num = 10;
 int feed_times = 0;
 int feed_ctr_once = 0;
 

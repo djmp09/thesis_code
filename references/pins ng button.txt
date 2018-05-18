@@ -1,0 +1,9 @@
+sensor_display = 13
+manual_feed = 12 & LED = 26
+manual_pump = 11 & LED = 28
+24_hrs_feed = 10 & LED = 30
+12_hrs_feed = 9 & LED = 32
+
+Power on LED = 34
+Error LED = 36
+

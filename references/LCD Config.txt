@@ -1,0 +1,23 @@
+LCD:
+Pin 1 to GND
+Pin 2 to 5V
+Pin 3 to wiper
+Pin 4 to Arduino pin 12/6/A4
+Pin 5 to GND
+Pin 6 to Arduino pin 11/7/A5
+Pin 11 to Arduino pin 5/A3
+Pin 12 to pin 4/A2
+Pin 13 to pin 3/A1
+Pin 14 to pin 2/A0
+
+
+Keypad:
+Keypin = Arduino Pin
+C0 3   = 8
+C1 1   = 7
+C2 5   = 6
+
+R0 2   = 5
+R1 7   = 4
+R2 6   = 3
+R3 4   = 2
