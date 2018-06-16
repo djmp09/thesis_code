@@ -28,9 +28,9 @@ int disable_float_ctr = 0;
 int invalid_ctr = 0;
 
 //reset var
-int reset_hour[] = {6, 13, 18, 0};
-int reset_minute[] = {0, 0, 0, 0};
-int reset_second[] = {0, 0, 0, 0};
+int reset_hour[] = {5, 16};
+int reset_minute[] = {30, 45};
+int reset_second[] = {0, 0};
 
 int hr_12_ctr = 0;
 int hr_24_ctr = 0;
@@ -625,7 +625,7 @@ void loop() {
         for(int x=0;x<len_msg;x++){
           cmsg[x] = msg_alert.charAt(x);
         }
-        sendSMS(cnum, len_num, cmsg, len_msg);
+        //sendSMS(cnum, len_num, cmsg, len_msg);
       }
     }
     invalid_ctr = 0;
@@ -638,10 +638,7 @@ void loop() {
     delay(1000);
   } else {
     if((dt.hour == reset_hour[0] && dt.minute == reset_minute[0] && dt.second == reset_second[0]) ||
-       (dt.hour == reset_hour[1] && dt.minute == reset_minute[1] && dt.second == reset_second[1]) ||
-       (dt.hour == reset_hour[2] && dt.minute == reset_minute[2] && dt.second == reset_second[2]) ||
-       (dt.hour == reset_hour[3] && dt.minute == reset_minute[3] && dt.second == reset_second[3])){
-        
+       (dt.hour == reset_hour[1] && dt.minute == reset_minute[1] && dt.second == reset_second[1])){
         digitalWrite(pump1_pin, HIGH);
         digitalWrite(pump2_pin, HIGH);
         resetFunc();
