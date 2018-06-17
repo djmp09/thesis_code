@@ -646,7 +646,7 @@ void loop() {
     
     if(gsm_cmd.equalsIgnoreCase("Status")){
       String snum = globe_dev_num;
-      msg_alert = "'ph':'" + String(getPh()) + "','temp':'" + String(current_temp) + "','water':'"+ h2o_level +"'";
+      msg_alert = "'ph':'" + String(getPh()) + "','temp':'" + String(current_temp) +"'";
       
       int len_num = snum.length();
       char cnum[len_num];
