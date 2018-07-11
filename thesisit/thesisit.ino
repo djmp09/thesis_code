@@ -67,7 +67,8 @@ int pump_count = 0;
 int pump_ctr = 0;
 
 //float switch
-int float_pin = 24;
+int float_pin = 45;
+int float_negative = 41;
 int float_seconds =  1800;
 int float_count = 0;
 int float_ctr = 0;
@@ -175,16 +176,16 @@ void setup() {
    
   pinMode(system_display_pin, INPUT_PULLUP);// button pin for displaying the sensors data
   
-  pinMode(float_pin, INPUT_PULLUP);//pin for float sensor
+  pinMode(float_pin, OUTPUT);//pin for float sensor
   digitalWrite(float_pin, HIGH);
   pinMode(feed_pin, OUTPUT);
-  pinMode(22, OUTPUT);//negative float sensor
-  digitalWrite(22, LOW);
+  pinMode(float_negative, INPUT);//negative float sensor
+  //digitalWrite(float_negative, LOW);
   
   pinMode(floattank_pin, INPUT_PULLUP);
   digitalWrite(floattank_pin, HIGH);
-  pinMode(40, OUTPUT);//negative floattank sensor
-  digitalWrite(40, LOW);
+  pinMode(41, OUTPUT);//negative floattank sensor
+  digitalWrite(41, HIGH);
   
   pinMode(pump1_pin, OUTPUT);//control of ssr1
   digitalWrite(pump1_pin, LOW);
